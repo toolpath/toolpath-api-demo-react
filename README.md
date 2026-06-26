@@ -21,6 +21,19 @@ This is a local demo, not a production app. There is no login, no multi-user aut
 - npm.
 - A Toolpath API key.
 
+## Get a Toolpath API Key
+
+1. Log in to your Toolpath account at [app.toolpath.com](https://app.toolpath.com). You must be a team admin.
+2. Click your profile at the bottom left, then choose `My preferences`.
+3. Navigate to the `API keys` tab.
+4. Press `Create API key`.
+5. Give the key a name and select `Read and write` permissions.
+6. Press `Create key`.
+7. Copy the key. Do not share it; you will only see it once.
+8. Paste the key into your `.env` file as `TP_API_KEY`.
+
+The Toolpath API is rolling out progressively. If you do not see the `API keys` tab, please [contact us](https://toolpath.com/support) to request access.
+
 ## Setup
 
 ```bash
