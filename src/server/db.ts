@@ -153,6 +153,21 @@ export class PartRepository {
     return this.getPart(part.id);
   }
 
+  updatePartProgramIds(partId: string, programIds: string[]): void {
+    this.db
+      .prepare(
+        `
+        UPDATE parts
+        SET program_ids_json = @programIdsJson
+        WHERE id = @partId
+      `
+      )
+      .run({
+        partId,
+        programIdsJson: JSON.stringify(programIds)
+      });
+  }
+
   upsertProgram(program: ProgramSummary): void {
     this.db
       .prepare(
@@ -167,8 +182,8 @@ export class PartRepository {
         )
         ON CONFLICT(id) DO UPDATE SET
           url = COALESCE(excluded.url, programs.url),
-          cut_config_id = excluded.cut_config_id,
-          cut_config_name = excluded.cut_config_name,
+          cut_config_id = COALESCE(excluded.cut_config_id, programs.cut_config_id),
+          cut_config_name = COALESCE(excluded.cut_config_name, programs.cut_config_name),
           status = excluded.status,
           score = COALESCE(excluded.score, programs.score),
           setup_count = COALESCE(excluded.setup_count, programs.setup_count),

@@ -50,15 +50,48 @@ describe("PartProcessor", () => {
         name: "bracket",
         units: "mm",
         programId: "prog0001",
-        programIds: ["prog0001", "prog0002"],
+        programIds: [],
         failureCode: null,
         failureReason: null,
         createdAt: "2026-06-24T18:00:00.000Z"
       }),
+      listPrograms: vi.fn().mockResolvedValue([
+        {
+          id: "prog0001",
+          url: "https://app.toolpath.com/parts/prog0001/report",
+          partId: "part0001",
+          cutConfigId: "cfg00001",
+          cutConfigName: "Aluminum 3-axis",
+          status: "processing",
+          score: null,
+          setupCount: null,
+          totalDurationSeconds: null,
+          failureCode: null,
+          failureReason: null,
+          createdAt: "2026-06-24T18:05:00.000Z",
+          updatedAt: "2026-06-24T18:05:00.000Z"
+        },
+        {
+          id: "prog0002",
+          url: "https://app.toolpath.com/parts/prog0002/report",
+          partId: "part0001",
+          cutConfigId: "cfg00002",
+          cutConfigName: "DFM Cut Config",
+          status: "processing",
+          score: null,
+          setupCount: null,
+          totalDurationSeconds: null,
+          failureCode: null,
+          failureReason: null,
+          createdAt: "2026-06-24T18:05:00.000Z",
+          updatedAt: "2026-06-24T18:05:00.000Z"
+        }
+      ]),
       getProgram: vi
         .fn()
         .mockResolvedValueOnce({
           id: "prog0001",
+          url: "https://app.toolpath.com/parts/prog0001/report",
           partId: "part0001",
           cutConfigId: "cfg00001",
           cutConfigName: "Aluminum 3-axis",
@@ -71,6 +104,7 @@ describe("PartProcessor", () => {
         })
         .mockResolvedValueOnce({
           id: "prog0002",
+          url: "https://app.toolpath.com/parts/prog0002/report",
           partId: "part0001",
           cutConfigId: "cfg00002",
           cutConfigName: "DFM Cut Config",
@@ -131,6 +165,7 @@ describe("PartProcessor", () => {
     ]);
     expect(toolpathClient.getProgram).toHaveBeenNthCalledWith(1, "part0001", "prog0001");
     expect(toolpathClient.getProgram).toHaveBeenNthCalledWith(2, "part0001", "prog0002");
+    expect(toolpathClient.listPrograms).toHaveBeenCalledWith("part0001");
     expect(toolpathClient.getProgramMachinability).toHaveBeenNthCalledWith(1, "part0001", "prog0001");
     expect(toolpathClient.getProgramMachinability).toHaveBeenNthCalledWith(2, "part0001", "prog0002");
     expect(toolpathClient.createProgram).not.toHaveBeenCalled();
@@ -167,10 +202,12 @@ describe("PartProcessor", () => {
         failureReason: null,
         createdAt: "2026-06-24T18:00:00.000Z"
       }),
+      listPrograms: vi.fn().mockResolvedValue([]),
       getProgram: vi
         .fn()
         .mockResolvedValueOnce({
           id: "prog0001",
+          url: null,
           partId: "part0001",
           cutConfigId: "cfg00001",
           cutConfigName: "Aluminum 3-axis",
@@ -183,6 +220,7 @@ describe("PartProcessor", () => {
         })
         .mockResolvedValueOnce({
           id: "prog0002",
+          url: null,
           partId: "part0001",
           cutConfigId: "cfg00002",
           cutConfigName: "DFM Cut Config",
@@ -295,6 +333,7 @@ describe("PartProcessor", () => {
         failureReason: "Could not process geometry",
         createdAt: "2026-06-24T18:00:00.000Z"
       }),
+      listPrograms: vi.fn(),
       getProgram: vi.fn(),
       createProgram: vi.fn()
     } as unknown as ToolpathClient;

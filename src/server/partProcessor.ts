@@ -19,7 +19,22 @@ export class PartProcessor {
 
     this.repository.updateToolpathPart(remotePart, isFailed ? "failed" : "processing");
 
-    for (const programId of remotePart.programIds) {
+    const listedPrograms = isFailed
+      ? []
+      : await this.toolpathClient.listPrograms(partId).catch((error: unknown) => {
+          console.warn(`Program list fetch failed for part ${partId}`, error);
+          return [];
+        });
+    for (const program of listedPrograms) {
+      this.repository.upsertProgram(program);
+    }
+
+    const programIds = listedPrograms.length > 0 ? listedPrograms.map((program) => program.id) : remotePart.programIds;
+    if (programIds.length > 0) {
+      this.repository.updatePartProgramIds(partId, programIds);
+    }
+
+    for (const programId of programIds) {
       const program = await this.toolpathClient.getProgram(partId, programId);
       this.repository.upsertProgram(program);
 

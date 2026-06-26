@@ -4,7 +4,7 @@ import { ToolpathClient, extractScore } from "./toolpathClient.js";
 
 describe("normalizeToolpathApiRoot", () => {
   it("adds the public API path when only an origin is provided", () => {
-    expect(normalizeToolpathApiRoot("https://api.toolpath.com")).toBe("https://api.toolpath.com/api/public/v0");
+    expect(normalizeToolpathApiRoot("https://app.toolpath.com")).toBe("https://app.toolpath.com/api/public/v0");
   });
 
   it("does not duplicate the public API path", () => {
@@ -110,6 +110,32 @@ describe("ToolpathClient", () => {
     );
   });
 
+  it("normalizes currentProgramId from current part responses", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        data: {
+          id: "part0001",
+          status: "ready",
+          name: "bracket",
+          units: "mm",
+          currentProgramId: "prog0001",
+          failureCode: null,
+          failureReason: null,
+          createdAt: "2026-06-24T18:00:00.000Z"
+        }
+      })
+    );
+    const client = new ToolpathClient({ apiRoot: "https://example.com/api/public/v0", apiKey: "tp_test", fetchImpl: fetchMock });
+
+    await expect(client.getPart("part0001")).resolves.toEqual(
+      expect.objectContaining({
+        id: "part0001",
+        programId: "prog0001",
+        programIds: []
+      })
+    );
+  });
+
   it("sends the nested create-program body with optional cutConfigId", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse({
@@ -142,6 +168,50 @@ describe("ToolpathClient", () => {
         }),
         body: JSON.stringify({
           cutConfigId: "cfg00002"
+        })
+      })
+    );
+  });
+
+  it("lists programs through the nested part route", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        data: {
+          programs: [
+            {
+              id: "prog0002",
+              url: "https://app.toolpath.com/parts/prog0002/report",
+              status: "processing",
+              partId: "part0001",
+              cutConfigId: "cfg00002",
+              cutConfigName: "DFM Cut Config",
+              createdAt: "2026-06-24T18:05:00.000Z",
+              updatedAt: "2026-06-24T18:05:00.000Z"
+            }
+          ]
+        }
+      })
+    );
+    const client = new ToolpathClient({
+      apiRoot: "https://example.com/api/public/v0",
+      apiKey: "tp_test",
+      fetchImpl: fetchMock
+    });
+
+    await expect(client.listPrograms("part0001")).resolves.toEqual([
+      expect.objectContaining({
+        id: "prog0002",
+        partId: "part0001",
+        cutConfigId: "cfg00002",
+        cutConfigName: "DFM Cut Config",
+        url: "https://app.toolpath.com/parts/prog0002/report"
+      })
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.com/api/public/v0/parts/part0001/programs",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer tp_test"
         })
       })
     );
@@ -262,6 +332,19 @@ describe("ToolpathClient", () => {
           "Idempotency-Key": "idem-complete"
         })
       })
+    );
+  });
+
+  it("reports the configured API host when fetch cannot connect", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("fetch failed"));
+    const client = new ToolpathClient({
+      apiRoot: "http://localhost:3000/api/public/v0",
+      apiKey: "tp_test",
+      fetchImpl: fetchMock
+    });
+
+    await expect(client.getCutConfigs()).rejects.toThrow(
+      "Could not reach Toolpath API at http://localhost:3000/api/public/v0/cut-configs: fetch failed"
     );
   });
 });

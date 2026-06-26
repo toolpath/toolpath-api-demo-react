@@ -75,6 +75,12 @@ type ToolpathProgramPayload = {
   data?: Record<string, unknown>;
 };
 
+type ToolpathProgramListPayload = {
+  data?: {
+    programs?: Record<string, unknown>[];
+  };
+};
+
 type ToolpathMachinabilityPayload = {
   data?: Record<string, unknown>;
 };
@@ -197,6 +203,11 @@ export class ToolpathClient {
     return (await this.getProgramWithRaw(partId, programId)).program;
   }
 
+  async listPrograms(partId: string): Promise<ProgramSummary[]> {
+    const payload = (await this.requestJson(`/parts/${encodeURIComponent(partId)}/programs`)) as ToolpathProgramListPayload;
+    return (payload.data?.programs ?? []).map(normalizeProgram);
+  }
+
   async getProgramWithRaw(partId: string, programId: string): Promise<ProgramWithRawResponse> {
     const payload = (await this.requestJson(
       `/parts/${encodeURIComponent(partId)}/programs/${encodeURIComponent(programId)}`
@@ -237,6 +248,12 @@ export class ToolpathClient {
         Accept: "application/json",
         ...(init.headers ?? {})
       }
+    }).catch((error: unknown) => {
+      throw new ToolpathApiError(
+        `Could not reach Toolpath API at ${sanitizeErrorUrl(url)}: ${error instanceof Error ? error.message : "fetch failed"}`,
+        0,
+        ""
+      );
     });
     const text = await response.text();
     const responseBody = parseJsonText(text) ?? text;
@@ -298,16 +315,18 @@ export function normalizeCutConfig(raw: unknown): CutConfig {
 }
 
 export function normalizePartData(raw: Partial<ToolpathPartData>): ToolpathPartData {
+  const record = raw as Partial<ToolpathPartData> & { currentProgramId?: string | null };
+
   return {
-    id: String(raw.id),
-    status: String(raw.status ?? "processing"),
-    name: String(raw.name ?? "Untitled part"),
-    units: String(raw.units ?? "mm"),
-    programId: raw.programId ? String(raw.programId) : null,
-    programIds: Array.isArray(raw.programIds) ? raw.programIds.map(String) : [],
-    failureCode: raw.failureCode ? String(raw.failureCode) : null,
-    failureReason: raw.failureReason ? String(raw.failureReason) : null,
-    createdAt: String(raw.createdAt ?? new Date().toISOString())
+    id: String(record.id),
+    status: String(record.status ?? "processing"),
+    name: String(record.name ?? "Untitled part"),
+    units: String(record.units ?? "mm"),
+    programId: record.programId ? String(record.programId) : record.currentProgramId ? String(record.currentProgramId) : null,
+    programIds: Array.isArray(record.programIds) ? record.programIds.map(String) : [],
+    failureCode: record.failureCode ? String(record.failureCode) : null,
+    failureReason: record.failureReason ? String(record.failureReason) : null,
+    createdAt: String(record.createdAt ?? new Date().toISOString())
   };
 }
 
@@ -391,4 +410,14 @@ function asRecordOrNull(value: unknown): Record<string, unknown> | null {
   }
 
   return value as Record<string, unknown>;
+}
+
+function sanitizeErrorUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
